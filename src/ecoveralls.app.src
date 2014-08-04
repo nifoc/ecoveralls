@@ -1,0 +1,16 @@
+{application, ecoveralls, [
+  {description, "Coveralls reports for Erlang projects."},
+  {vsn, "0.1"},
+  {modules, []},
+  {registered, []},
+  {applications, [
+    kernel,
+    stdlib,
+    asn1,
+    crypto,
+    public_key,
+    ssl,
+    inets
+  ]},
+  {env, []}
+]}.
