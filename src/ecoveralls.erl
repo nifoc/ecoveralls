@@ -82,7 +82,6 @@ report(CoverData) ->
 -spec report(string(), options()) -> ok | {error, term()}.
 report(CoverData, Options) ->
   case run(CoverData, Options) of
-    [] -> ok;
     Data ->
       JsonData = jsx:encode(Data),
       case httpc:request(post, {?COVERALLS_URL, [], "application/json", JsonData}, [], []) of
@@ -142,7 +141,7 @@ relative_source_file_path(SrcFile) ->
   Path = tl(string:tokens(SrcFile, ".")),
   tl(string:join(Path, ".")).
 
--spec line_coverage(pos_integer(), pos_integer(), list(), line_coverage()) -> line_coverage().
+-spec line_coverage(pos_integer(), pos_integer(), list(), [line_coverage()]) -> [line_coverage()].
 line_coverage(Line, EndLine, _Coverage, Acc) when Line > EndLine ->
   lists:reverse(Acc);
 line_coverage(Line, EndLine, [], Acc) ->
