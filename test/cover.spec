@@ -3,3 +3,4 @@
   eunit_SUITE,
   cover_SUITE
 ]}.
+{export, "logs/all.coverdata"}.

@@ -30,7 +30,7 @@ define upload_coverage
 		init:stop()'
 endef
 
-coverage-report: $(shell find logs -type f -name \*.coverdata 2>/dev/null | tail -n1)
+coverage-report: $(shell ls -1rt `find logs -type f -name \*.coverdata 2>/dev/null` | tail -n1)
 	$(if $(strip $?),$(call upload_coverage,$?))
 
 .PHONY: coverage-report

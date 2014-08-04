@@ -108,22 +108,28 @@ coverage_report([Mod|Rest], Options, Acc) ->
   case code:where_is_file(atom_to_list(Mod) ++ ".beam") of
     non_existing -> coverage_report(Rest, Options, Acc);
     BeamFile when is_list(BeamFile) ->
-      FileCoverage = file_coverage(Mod, BeamFile, Options),
-      coverage_report(Rest, Options, [FileCoverage | Acc])
+      case file_coverage(Mod, BeamFile, Options) of
+        {ok, FileCoverage} -> coverage_report(Rest, Options, [FileCoverage | Acc]);
+        {error, _Reason} -> coverage_report(Rest, Options, Acc)
+      end
   end.
 
--spec file_coverage(module(), string(), options()) -> file_coverage().
+-spec file_coverage(module(), string(), options()) -> {ok, file_coverage()} | {error, term()}.
 file_coverage(Mod, BeamFile, Options) ->
   SourcePaths = proplists:get_value(src_dirs, Options, ["src"]),
-  SourceFile = find_source_file(BeamFile, SourcePaths),
-  {ok, Source} = file:read_file(SourceFile),
-  SourceLines = binary:split(Source, <<"\n">>, [global]),
-  {ok, Coverage} = cover:analyse(Mod, calls, line),
-  CoverageLines = line_coverage(1, length(SourceLines), maybe_drop_first(Coverage), []),
-  Filename = relative_source_file_path(SourceFile),
-  [{<<"name">>, unicode:characters_to_binary(Filename)}, {<<"source">>, Source}, {<<"coverage">>, CoverageLines}].
+  case find_source_file(BeamFile, SourcePaths) of
+    {ok, SourceFile} ->
+      {ok, Source} = file:read_file(SourceFile),
+      SourceLines = binary:split(Source, <<"\n">>, [global]),
+      {ok, Coverage} = cover:analyse(Mod, calls, line),
+      CoverageLines = line_coverage(1, length(SourceLines), maybe_drop_first(Coverage), []),
+      Filename = relative_source_file_path(SourceFile),
+      FileCoverage = [{<<"name">>, unicode:characters_to_binary(Filename)}, {<<"source">>, Source}, {<<"coverage">>, CoverageLines}],
+      {ok, FileCoverage};
+    {error, _Reason}=E -> E
+  end.
 
--spec find_source_file(string(), [string()]) -> string().
+-spec find_source_file(string(), [string()]) -> {ok, string()} | {error, term()}.
 find_source_file(BeamFile, SourcePaths) ->
   BeamDir = filename:dirname(BeamFile),
   SrcFilename = re:replace(filename:basename(BeamFile), "\.beam$", ".erl", [{return, list}]),
@@ -131,8 +137,10 @@ find_source_file(BeamFile, SourcePaths) ->
     SrcDir = filename:join([BeamDir, "..", SourcePath]),
     filename:join([SrcDir, SrcFilename])
   end, SourcePaths),
-  ExistingSrcFiles = lists:filter(fun(F) -> filelib:is_file(F) end, SrcFiles),
-  hd(ExistingSrcFiles).
+  case lists:filter(fun(F) -> filelib:is_file(F) end, SrcFiles) of
+    [] -> {error, source_not_found};
+    ExistingSrcFiles -> {ok, hd(ExistingSrcFiles)}
+  end.
 
 -spec maybe_drop_first(list()) -> list().
 maybe_drop_first([]) -> [];
@@ -159,7 +167,7 @@ line_coverage(Line, EndLine, Coverage, Acc) ->
 -ifdef(TEST).
 find_source_file_test() ->
   BeamFile = code:where_is_file(?MODULE_STRING ++ ".beam"),
-  SrcFile = find_source_file(BeamFile, ["src"]),
+  {ok, SrcFile} = find_source_file(BeamFile, ["src"]),
   ?assertEqual("src/ecoveralls.erl", relative_source_file_path(SrcFile)).
 
 maybe_drop_first_test() ->
