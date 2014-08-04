@@ -1,8 +1,9 @@
 PROJECT = ecoveralls
 PROJECT_VERSION = 0.1
 
-DEPS = jsx
+DEPS = jsx hackney
 dep_jsx = git https://github.com/talentdeficit/jsx v2.0.4
+dep_hackney = git https://github.com/benoitc/hackney 0.13.0
 
 TEST_DEPS = nifoc_ct_helper
 dep_nifoc_ct_helper = git https://github.com/nifoc/nifoc_ct_helper master
@@ -22,8 +23,8 @@ CT_OPTS = -ct_hooks nifoc_ct_hook [] -cover ./test/cover.spec
 
 include erlang.mk
 
-coverage-report: $(shell find find logs -type f -name \*.coverdata 2>/dev/null)
-	$(gen_verbose) erl -noshell -pa ebin/ -eval ' \
+coverage-report: $(shell find logs -type f -name \*.coverdata 2>/dev/null | tail -n1)
+	$(gen_verbose) erl -noshell -pa ebin deps/*/ebin -eval ' \
 		ok = ecoveralls:start(), \
 		ok = ecoveralls:report("$?", [{service_name, <<"travis-ci">>}, {service_job_id, <<"$(TRAVIS_JOB_ID)">>}]), \
 		init:stop()'

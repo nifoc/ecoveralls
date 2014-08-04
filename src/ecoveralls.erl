@@ -47,7 +47,8 @@ start() ->
   ok = application:start(crypto),
   ok = application:start(public_key),
   ok = application:start(ssl),
-  ok = inets:start(),
+  ok = application:start(idna),
+  ok = application:start(hackney),
   ok = application:start(jsx),
   ok = application:start(ecoveralls),
   ok.
@@ -56,7 +57,8 @@ start() ->
 stop() ->
   ok = application:stop(ecoveralls),
   ok = application:stop(jsx),
-  ok = inets:stop(),
+  ok = application:stop(idna),
+  ok = application:stop(hackney),
   ok = application:stop(ssl),
   ok = application:stop(public_key),
   ok = application:stop(crypto),
@@ -83,11 +85,12 @@ report(CoverData) ->
 report(CoverData, Options) ->
   case run(CoverData, Options) of
     Data ->
-      JsonData = jsx:encode(Data),
-      case httpc:request(post, {?COVERALLS_URL, [], "application/json", JsonData}, [], []) of
-        {ok, _Result} -> ok;
-        {error, Reason} ->
-          io:format(user, "~p~n", [Reason]),
+      Payload = jsx:encode(Data),
+      case hackney:request(post, ?COVERALLS_URL, [], {multipart, [{<<"json">>, Payload}]}, []) of
+        {ok, 200, _RespHeaders, _ClientRef} -> ok;
+        {ok, _StatusCode, _RespHeaders, ClientRef} ->
+          {ok, Body} = hackney:body(ClientRef),
+          io:format(user, "~p~n", [Body]),
           ok
       end
   end.
