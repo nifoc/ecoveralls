@@ -9,3 +9,6 @@ otp_release:
 script:
   - make plt && make dialyze
   - make tests
+
+after_success:
+  - make coverage-report
