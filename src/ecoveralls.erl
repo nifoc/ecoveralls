@@ -36,7 +36,8 @@
   run/1,
   run/2,
   report/1,
-  report/2
+  report/2,
+  travis_ci/1
 ]).
 
 % API
@@ -77,11 +78,11 @@ run(CoverData, Options) ->
   FileCoverage = coverage_report(cover:imported_modules(), Options),
   [{<<"service_job_id">>, ServiceJobId}, {<<"service_name">>, ServiceName}, {<<"source_files">>, FileCoverage}].
 
--spec report(string()) -> ok | {error, term()}.
+-spec report(string()) -> ok.
 report(CoverData) ->
   report(CoverData, []).
 
--spec report(string(), options()) -> ok | {error, term()}.
+-spec report(string(), options()) -> ok.
 report(CoverData, Options) ->
   case run(CoverData, Options) of
     Data ->
@@ -94,6 +95,13 @@ report(CoverData, Options) ->
           ok
       end
   end.
+
+-spec travis_ci(string()) -> ok.
+travis_ci(CoverData) ->
+  ok = start(),
+  JobId = unicode:characters_to_binary(os:getenv("TRAVIS_JOB_ID")),
+  ok = ecoveralls:report(CoverData, [{service_name, <<"travis-ci">>}, {service_job_id, JobId}]),
+  ok = stop().
 
 % Private
 

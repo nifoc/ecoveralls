@@ -23,14 +23,7 @@ CT_OPTS = -ct_hooks nifoc_ct_hook [] -cover ./test/cover.spec
 
 include erlang.mk
 
-define upload_coverage
-	$(gen_verbose) erl -noshell -pa ebin deps/*/ebin -eval ' \
-		ok = ecoveralls:start(), \
-		ok = ecoveralls:report("$(1)", [{service_name, <<"travis-ci">>}, {service_job_id, <<"$(TRAVIS_JOB_ID)">>}]), \
-		init:stop()'
-endef
-
 coverage-report: $(shell ls -1rt `find logs -type f -name \*.coverdata 2>/dev/null` | tail -n1)
-	$(if $(strip $?),$(call upload_coverage,$?))
+	$(gen_verbose) erl -noshell -pa ebin deps/*/ebin -eval 'ecoveralls:travis_ci("$?"), init:stop()'
 
 .PHONY: coverage-report
