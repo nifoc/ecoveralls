@@ -14,7 +14,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--define(COVERALLS_URL, "https://coveralls.io/api/v1/jobs").
+-define(COVERALLS_URL, <<"https://coveralls.io/api/v1/jobs">>).
 
 % Types
 
