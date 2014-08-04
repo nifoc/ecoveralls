@@ -8,6 +8,31 @@ Coveralls reports for Erlang projects.
 
 This is alpha software. Things might still change in ways that break everything.
 
+## Usage
+
+**This is currently only known to work with erlang.mk, Common Test and Travis CI.**
+
+### cover.spec
+
+In order to have one `.coverdata` file that includes all test suites it is recommended to add the following line to your `cover.spec`:
+
+```erlang
+{export, "logs/all.coverdata"}.
+```
+
+This will write an `all.coverdata` file to your `logs` directory, which is what Common Test uses by default.
+
+### erlang.mk
+
+Add the following target to your `Makefile` (after the erlang.mk include):
+
+```makefile
+coverage-report: $(shell ls -1rt `find logs -type f -name \*.coverdata 2>/dev/null` | tail -n1)
+	$(gen_verbose) erl -noshell -pa ebin deps/*/ebin -eval 'ecoveralls:travis_ci("$?"), init:stop()'
+
+.PHONY: coverage-report
+```
+
 ## License
 
 [ISC](https://en.wikipedia.org/wiki/ISC_license).
