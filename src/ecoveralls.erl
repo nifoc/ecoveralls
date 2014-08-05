@@ -146,7 +146,7 @@ maybe_drop_first(List) -> List.
 project_filename(SrcFile) ->
   Path = tl(string:tokens(SrcFile, ".")),
   Path2 = tl(string:join(Path, ".")),
-   unicode:characters_to_binary(Path2).
+  unicode:characters_to_binary(Path2).
 
 -spec line_coverage(pos_integer(), pos_integer(), list(), [line_coverage()]) -> [line_coverage()].
 line_coverage(Line, EndLine, _Coverage, Acc) when Line > EndLine ->
