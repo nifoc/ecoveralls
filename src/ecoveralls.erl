@@ -29,14 +29,33 @@
   file_coverage/0
 ]).
 
+% Services
+-export([
+  travis_ci/1,
+  travis_ci/2
+]).
+
 % API
 -export([
   start/0,
   stop/0,
   analyse/2,
-  report/2,
-  travis_ci/1
+  report/2
 ]).
+
+% Services
+
+-spec travis_ci(string()) -> ok.
+travis_ci(CoverData) ->
+  travis_ci(CoverData, []).
+
+-spec travis_ci(string(), options()) -> ok.
+travis_ci(CoverData, Options) ->
+  ok = start(),
+  JobId = unicode:characters_to_binary(os:getenv("TRAVIS_JOB_ID")),
+  Options2 = merge_options([{service_name, <<"travis-ci">>}, {service_job_id, JobId}], Options),
+  ok = ecoveralls:report(CoverData, Options2),
+  ok = stop().
 
 % API
 
@@ -86,13 +105,6 @@ report(CoverData, Options) ->
           ok
       end
   end.
-
--spec travis_ci(string()) -> ok.
-travis_ci(CoverData) ->
-  ok = start(),
-  JobId = unicode:characters_to_binary(os:getenv("TRAVIS_JOB_ID")),
-  ok = ecoveralls:report(CoverData, [{service_name, <<"travis-ci">>}, {service_job_id, JobId}]),
-  ok = stop().
 
 % Private
 
@@ -158,9 +170,21 @@ line_coverage(Line, EndLine, [{{_Mod, Line}, Calls}|Rest], Acc) ->
 line_coverage(Line, EndLine, Coverage, Acc) ->
   line_coverage(Line + 1, EndLine, Coverage, [null | Acc]).
 
+-spec merge_options(options(), options()) -> options().
+merge_options(ListA, ListB) ->
+  DictA = orddict:from_list(ListA),
+  DictB = orddict:from_list(ListB),
+  MergedDict = orddict:merge(fun(_Key, _ValueA, ValueB) -> ValueB end, DictA, DictB),
+  orddict:to_list(MergedDict).
+
 % Tests (private functions)
 
 -ifdef(TEST).
+merge_options_test() ->
+  ?assertEqual([{service_name, <<"test">>}], merge_options([], [{service_name, <<"test">>}])),
+  ?assertEqual([{service_name, <<"test">>}], merge_options([{service_name, <<"foo">>}], [{service_name, <<"test">>}])),
+  ?assertEqual([{service_job_id, <<"123">>}, {service_name, <<"test">>}], merge_options([{service_name, <<"test">>}], [{service_job_id, <<"123">>}])).
+
 find_source_file_test() ->
   BeamFile = code:where_is_file(?MODULE_STRING ++ ".beam"),
   {ok, SrcFile} = find_source_file(BeamFile, ["src"]),
