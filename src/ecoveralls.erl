@@ -33,9 +33,7 @@
 -export([
   start/0,
   stop/0,
-  run/1,
-  run/2,
-  report/1,
+  analyse/2,
   report/2,
   travis_ci/1
 ]).
@@ -66,28 +64,21 @@ stop() ->
   ok = application:stop(asn1),
   ok.
 
--spec run(string()) -> jsx:json_term().
-run(CoverData) ->
-  run(CoverData, []).
-
--spec run(string(), options()) -> jsx:json_term().
-run(CoverData, Options) ->
+-spec analyse(string(), options()) -> jsx:json_term().
+analyse(CoverData, Options) ->
   ok = cover:import(CoverData),
   ServiceJobId = proplists:get_value(service_job_id, Options, null),
   ServiceName = proplists:get_value(service_name, Options, null),
   FileCoverage = coverage_report(cover:imported_modules(), Options),
   [{<<"service_job_id">>, ServiceJobId}, {<<"service_name">>, ServiceName}, {<<"source_files">>, FileCoverage}].
 
--spec report(string()) -> ok.
-report(CoverData) ->
-  report(CoverData, []).
-
 -spec report(string(), options()) -> ok.
 report(CoverData, Options) ->
-  case run(CoverData, Options) of
+  case analyse(CoverData, Options) of
     Data ->
+      Url = proplists:get_value(url, Options, ?COVERALLS_URL),
       Payload = jsx:encode(Data),
-      case hackney:request(post, ?COVERALLS_URL, [], {multipart, [{<<"json">>, Payload}]}, []) of
+      case hackney:request(post, Url, [], {multipart, [{<<"json">>, Payload}]}, []) of
         {ok, 200, _RespHeaders, _ClientRef} -> ok;
         {ok, _StatusCode, _RespHeaders, ClientRef} ->
           {ok, Body} = hackney:body(ClientRef),
@@ -131,8 +122,7 @@ file_coverage(Mod, BeamFile, Options) ->
       SourceLines = binary:split(Source, <<"\n">>, [global]),
       {ok, Coverage} = cover:analyse(Mod, calls, line),
       CoverageLines = line_coverage(1, length(SourceLines), maybe_drop_first(Coverage), []),
-      Filename = relative_source_file_path(SourceFile),
-      FileCoverage = [{<<"name">>, unicode:characters_to_binary(Filename)}, {<<"source">>, Source}, {<<"coverage">>, CoverageLines}],
+      FileCoverage = [{<<"name">>, project_filename(SourceFile)}, {<<"source">>, Source}, {<<"coverage">>, CoverageLines}],
       {ok, FileCoverage};
     {error, _Reason}=E -> E
   end.
@@ -141,10 +131,7 @@ file_coverage(Mod, BeamFile, Options) ->
 find_source_file(BeamFile, SourcePaths) ->
   BeamDir = filename:dirname(BeamFile),
   SrcFilename = re:replace(filename:basename(BeamFile), "\.beam$", ".erl", [{return, list}]),
-  SrcFiles = lists:map(fun(SourcePath) ->
-    SrcDir = filename:join([BeamDir, "..", SourcePath]),
-    filename:join([SrcDir, SrcFilename])
-  end, SourcePaths),
+  SrcFiles = [filename:join([BeamDir, "..", SP, SrcFilename]) || SP <- SourcePaths],
   case lists:filter(fun(F) -> filelib:is_file(F) end, SrcFiles) of
     [] -> {error, source_not_found};
     ExistingSrcFiles -> {ok, hd(ExistingSrcFiles)}
@@ -155,10 +142,11 @@ maybe_drop_first([]) -> [];
 maybe_drop_first([{{_Mod, 0}, _Calls}|Rest]) -> Rest;
 maybe_drop_first(List) -> List.
 
--spec relative_source_file_path(string()) -> string().
-relative_source_file_path(SrcFile) ->
+-spec project_filename(string()) -> binary().
+project_filename(SrcFile) ->
   Path = tl(string:tokens(SrcFile, ".")),
-  tl(string:join(Path, ".")).
+  Path2 = tl(string:join(Path, ".")),
+   unicode:characters_to_binary(Path2).
 
 -spec line_coverage(pos_integer(), pos_integer(), list(), [line_coverage()]) -> [line_coverage()].
 line_coverage(Line, EndLine, _Coverage, Acc) when Line > EndLine ->
@@ -176,7 +164,7 @@ line_coverage(Line, EndLine, Coverage, Acc) ->
 find_source_file_test() ->
   BeamFile = code:where_is_file(?MODULE_STRING ++ ".beam"),
   {ok, SrcFile} = find_source_file(BeamFile, ["src"]),
-  ?assertEqual("src/ecoveralls.erl", relative_source_file_path(SrcFile)).
+  ?assertEqual(<<"src/ecoveralls.erl">>, project_filename(SrcFile)).
 
 maybe_drop_first_test() ->
   ?assertEqual([], maybe_drop_first([])),

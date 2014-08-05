@@ -21,13 +21,17 @@
 
 % Tests
 -export([
-  analyse/1
+  analyse/1,
+  report/1
 ]).
 
 % Common Test
 
 all() ->
-  [analyse].
+  [
+   analyse,
+   report
+  ].
 
 init_per_suite(Config) ->
   ok = ecoveralls:start(),
@@ -42,7 +46,7 @@ end_per_suite(_Config) ->
 analyse(Config) ->
   DataDir = ?config(data_dir, Config),
   CoverData = filename:join(DataDir, "test.coverdata"),
-  CoverageReport = ecoveralls:run(CoverData, [{src_dirs, ["test/cover_SUITE_data"]}]),
+  CoverageReport = ecoveralls:analyse(CoverData, [{src_dirs, ["test/cover_SUITE_data"]}]),
   {<<"service_job_id">>, null} = lists:keyfind(<<"service_job_id">>, 1, CoverageReport),
   {<<"service_name">>, null} = lists:keyfind(<<"service_name">>, 1, CoverageReport),
   {<<"source_files">>, Files} = lists:keyfind(<<"source_files">>, 1, CoverageReport),
@@ -53,3 +57,9 @@ analyse(Config) ->
     Source2 = binary:split(Source, <<"\n">>, [global]),
     Name =:= <<"test/cover_SUITE_data/cover_test.erl">> andalso length(Source2) =:= length(Coverage)
   end, Files).
+
+report(Config) ->
+  DataDir = ?config(data_dir, Config),
+  CoverData = filename:join(DataDir, "test.coverdata"),
+  % This will cause a warning, because the .coverdata has already been imported ...
+  ok = ecoveralls:report(CoverData, [{src_dirs, ["test/cover_SUITE_data"]}, {url, <<"http://example.com">>}]).

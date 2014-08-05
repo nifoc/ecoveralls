@@ -24,6 +24,15 @@ This will write an `all.coverdata` file to your `logs` directory, which is what 
 
 ### erlang.mk
 
+Just add ECoveralls as a testing dependency.
+
+```makefile
+TEST_DEPS = ecoveralls
+dep_ecoveralls = git https://github.com/nifoc/ecoveralls master
+```
+
+### Travis CI
+
 Add the following target to your `Makefile` (after the erlang.mk include):
 
 ```makefile
@@ -31,6 +40,15 @@ coverage-report: $(shell ls -1rt `find logs -type f -name \*.coverdata 2>/dev/nu
 	$(gen_verbose) erl -noshell -pa ebin deps/*/ebin -eval 'ecoveralls:travis_ci("$?"), init:stop()'
 
 .PHONY: coverage-report
+```
+
+If you're not using erlang.mk you should replace `$(gen_verbose) ` with `@`.
+
+Now you have to tell Travis to send data to Coveralls after a (successful) test run. You can do this by adding the following lines to your `.travis.yml`:
+
+```yaml
+after_success:
+  - make coverage-report
 ```
 
 ## License
