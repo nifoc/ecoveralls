@@ -1,6 +1,6 @@
 # ECoveralls
 
-Coveralls reports for Erlang projects.
+[Coveralls](https://coveralls.io) reports for Erlang projects.
 
 [![Build Status](https://travis-ci.org/nifoc/ecoveralls.png)](https://travis-ci.org/nifoc/ecoveralls) [![Coverage Status](https://coveralls.io/repos/nifoc/ecoveralls/badge.png?branch=master)](https://coveralls.io/r/nifoc/ecoveralls?branch=master)
 
