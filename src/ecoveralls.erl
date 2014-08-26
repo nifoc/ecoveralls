@@ -133,7 +133,7 @@ file_coverage(Mod, BeamFile, Options) ->
       {ok, Source} = file:read_file(SourceFile),
       SourceLines = binary:split(Source, <<"\n">>, [global]),
       {ok, Coverage} = cover:analyse(Mod, calls, line),
-      CoverageLines = line_coverage(1, length(SourceLines), maybe_drop_first(Coverage), []),
+      CoverageLines = line_coverage(1, length(SourceLines), Coverage, []),
       FileCoverage = [{<<"name">>, project_filename(SourceFile)}, {<<"source">>, Source}, {<<"coverage">>, CoverageLines}],
       {ok, FileCoverage};
     {error, _Reason}=E -> E
@@ -149,11 +149,6 @@ find_source_file(BeamFile, SourcePaths) ->
     ExistingSrcFiles -> {ok, hd(ExistingSrcFiles)}
   end.
 
--spec maybe_drop_first(list()) -> list().
-maybe_drop_first([]) -> [];
-maybe_drop_first([{{_Mod, 0}, _Calls}|Rest]) -> Rest;
-maybe_drop_first(List) -> List.
-
 -spec project_filename(string()) -> binary().
 project_filename(SrcFile) ->
   Path = tl(string:tokens(SrcFile, ".")),
@@ -165,6 +160,8 @@ line_coverage(Line, EndLine, _Coverage, Acc) when Line > EndLine ->
   lists:reverse(Acc);
 line_coverage(Line, EndLine, [], Acc) ->
   line_coverage(Line + 1, EndLine, [], [null | Acc]);
+line_coverage(1, EndLine, [{{_Mod, 0}, _Calls}|Rest], Acc) ->
+  line_coverage(1, EndLine, Rest, Acc);
 line_coverage(Line, EndLine, [{{_Mod, Line}, Calls}|Rest], Acc) ->
   line_coverage(Line + 1, EndLine, Rest, [Calls | Acc]);
 line_coverage(Line, EndLine, Coverage, Acc) ->
@@ -180,18 +177,24 @@ merge_options(ListA, ListB) ->
 % Tests (private functions)
 
 -ifdef(TEST).
-merge_options_test() ->
-  ?assertEqual([{service_name, <<"test">>}], merge_options([], [{service_name, <<"test">>}])),
-  ?assertEqual([{service_name, <<"test">>}], merge_options([{service_name, <<"foo">>}], [{service_name, <<"test">>}])),
-  ?assertEqual([{service_job_id, <<"123">>}, {service_name, <<"test">>}], merge_options([{service_name, <<"test">>}], [{service_job_id, <<"123">>}])).
+coverage_report_test() ->
+  ?assertEqual([], coverage_report([nothing], [])).
+
+file_coverage_test() ->
+  BeamFile = code:where_is_file(?MODULE_STRING ++ ".beam"),
+  ?assertMatch({error, _Reason}, file_coverage(?MODULE, BeamFile, [{src_dirs, ["nothing"]}])).
 
 find_source_file_test() ->
   BeamFile = code:where_is_file(?MODULE_STRING ++ ".beam"),
   {ok, SrcFile} = find_source_file(BeamFile, ["src"]),
-  ?assertEqual(<<"src/ecoveralls.erl">>, project_filename(SrcFile)).
+  ?assertEqual(<<"src/ecoveralls.erl">>, project_filename(SrcFile)),
+  ?assertEqual({error, source_not_found}, find_source_file(BeamFile, ["nothing"])).
 
-maybe_drop_first_test() ->
-  ?assertEqual([], maybe_drop_first([])),
-  ?assertEqual([1], maybe_drop_first([1])),
-  ?assertEqual([], maybe_drop_first([{{test, 0}, 9001}])).
+line_coverage_test() ->
+  ?assertEqual([null, null], line_coverage(1, 2, [{{test, 0}, 9001}], [])).
+
+merge_options_test() ->
+  ?assertEqual([{service_name, <<"test">>}], merge_options([], [{service_name, <<"test">>}])),
+  ?assertEqual([{service_name, <<"test">>}], merge_options([{service_name, <<"foo">>}], [{service_name, <<"test">>}])),
+  ?assertEqual([{service_job_id, <<"123">>}, {service_name, <<"test">>}], merge_options([{service_name, <<"test">>}], [{service_job_id, <<"123">>}])).
 -endif.
