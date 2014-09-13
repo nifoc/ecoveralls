@@ -18,7 +18,7 @@
 
 % Types
 
--type option() :: {service_job_id, binary()} | {service_name, binary()} | {src_dirs, [string()]}.
+-type option() :: {service_job_id, binary()} | {service_name, binary()}.
 -type line_coverage() :: non_neg_integer() | null.
 
 -type options() :: [option()].
@@ -88,7 +88,7 @@ analyse(CoverData, Options) ->
   ok = cover:import(CoverData),
   ServiceJobId = proplists:get_value(service_job_id, Options, null),
   ServiceName = proplists:get_value(service_name, Options, null),
-  FileCoverage = coverage_report(cover:imported_modules(), Options),
+  FileCoverage = coverage_report(cover:imported_modules()),
   [{<<"service_job_id">>, ServiceJobId}, {<<"service_name">>, ServiceName}, {<<"source_files">>, FileCoverage}].
 
 -spec report(string(), options()) -> ok.
@@ -108,27 +108,22 @@ report(CoverData, Options) ->
 
 % Private
 
--spec coverage_report([module()], options()) -> [file_coverage()].
-coverage_report(Modules, Options) ->
-  coverage_report(Modules, Options, []).
+-spec coverage_report([module()]) -> [file_coverage()].
+coverage_report(Modules) ->
+  coverage_report(Modules, []).
 
--spec coverage_report([module()], options(), [file_coverage()]) -> [file_coverage()].
-coverage_report([], _Options, Acc) ->
+-spec coverage_report([module()], [file_coverage()]) -> [file_coverage()].
+coverage_report([], Acc) ->
   Acc;
-coverage_report([Mod|Rest], Options, Acc) ->
-  case code:where_is_file(atom_to_list(Mod) ++ ".beam") of
-    non_existing -> coverage_report(Rest, Options, Acc);
-    BeamFile when is_list(BeamFile) ->
-      case file_coverage(Mod, BeamFile, Options) of
-        {ok, FileCoverage} -> coverage_report(Rest, Options, [FileCoverage | Acc]);
-        {error, _Reason} -> coverage_report(Rest, Options, Acc)
-      end
+coverage_report([Mod|Rest], Acc) ->
+  case file_coverage(Mod) of
+    {ok, FileCoverage} -> coverage_report(Rest, [FileCoverage | Acc]);
+    {error, _Reason} -> coverage_report(Rest, Acc)
   end.
 
--spec file_coverage(module(), string(), options()) -> {ok, file_coverage()} | {error, term()}.
-file_coverage(Mod, BeamFile, Options) ->
-  SourcePaths = proplists:get_value(src_dirs, Options, ["src"]),
-  case find_source_file(BeamFile, SourcePaths) of
+-spec file_coverage(module()) -> {ok, file_coverage()} | {error, term()}.
+file_coverage(Mod) ->
+  case find_source_file(Mod) of
     {ok, SourceFile} ->
       {ok, Source} = file:read_file(SourceFile),
       SourceLines = binary:split(Source, <<"\n">>, [global]),
@@ -139,21 +134,25 @@ file_coverage(Mod, BeamFile, Options) ->
     {error, _Reason}=E -> E
   end.
 
--spec find_source_file(string(), [string()]) -> {ok, string()} | {error, term()}.
-find_source_file(BeamFile, SourcePaths) ->
-  BeamDir = filename:dirname(BeamFile),
-  SrcFilename = re:replace(filename:basename(BeamFile), "\.beam$", ".erl", [{return, list}]),
-  SrcFiles = [filename:join([BeamDir, "..", SP, SrcFilename]) || SP <- SourcePaths],
-  case lists:filter(fun(F) -> filelib:is_file(F) end, SrcFiles) of
-    [] -> {error, source_not_found};
-    ExistingSrcFiles -> {ok, hd(ExistingSrcFiles)}
+-spec find_source_file(module()) -> {ok, string()} | {error, term()}.
+find_source_file(Mod) ->
+  try Mod:module_info(compile) of
+    Info ->
+      Source = proplists:get_value(source, Info),
+      case filelib:is_file(Source) of
+        false -> {error, source_not_found};
+        true -> {ok, Source}
+      end
+  catch
+    error:undef -> {error, source_not_found}
   end.
 
 -spec project_filename(string()) -> binary().
 project_filename(SrcFile) ->
-  Path = tl(string:tokens(SrcFile, ".")),
-  Path2 = tl(string:join(Path, ".")),
-  unicode:characters_to_binary(Path2).
+  {ok, Cwd} = file:get_cwd(),
+  Cwd2 = re:replace(Cwd, "/(logs|\.eunit)/.+$", "", [{return, list}]),
+  Path = string:substr(SrcFile, length(Cwd2) + 2),
+  unicode:characters_to_binary(Path).
 
 -spec line_coverage(pos_integer(), pos_integer(), list(), [line_coverage()]) -> [line_coverage()].
 line_coverage(Line, EndLine, _Coverage, Acc) when Line > EndLine ->
@@ -180,15 +179,10 @@ merge_options(ListA, ListB) ->
 coverage_report_test() ->
   ?assertEqual([], coverage_report([nothing], [])).
 
-file_coverage_test() ->
-  BeamFile = code:where_is_file(?MODULE_STRING ++ ".beam"),
-  ?assertMatch({error, _Reason}, file_coverage(?MODULE, BeamFile, [{src_dirs, ["nothing"]}])).
-
 find_source_file_test() ->
-  BeamFile = code:where_is_file(?MODULE_STRING ++ ".beam"),
-  {ok, SrcFile} = find_source_file(BeamFile, ["src"]),
+  {ok, SrcFile} = find_source_file(?MODULE),
   ?assertEqual(<<"src/ecoveralls.erl">>, project_filename(SrcFile)),
-  ?assertEqual({error, source_not_found}, find_source_file(BeamFile, ["nothing"])).
+  ?assertEqual({error, source_not_found}, find_source_file(nothing)).
 
 line_coverage_test() ->
   ?assertEqual([null, null], line_coverage(1, 2, [{{test, 0}, 9001}], [])).

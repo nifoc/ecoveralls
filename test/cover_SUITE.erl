@@ -46,7 +46,7 @@ end_per_suite(_Config) ->
 analyse(Config) ->
   DataDir = ?config(data_dir, Config),
   CoverData = filename:join(DataDir, "test.coverdata"),
-  CoverageReport = ecoveralls:analyse(CoverData, [{src_dirs, ["test/cover_SUITE_data"]}]),
+  CoverageReport = ecoveralls:analyse(CoverData, []),
   {<<"service_job_id">>, null} = lists:keyfind(<<"service_job_id">>, 1, CoverageReport),
   {<<"service_name">>, null} = lists:keyfind(<<"service_name">>, 1, CoverageReport),
   {<<"source_files">>, Files} = lists:keyfind(<<"source_files">>, 1, CoverageReport),
@@ -62,4 +62,4 @@ report(Config) ->
   DataDir = ?config(data_dir, Config),
   CoverData = filename:join(DataDir, "test.coverdata"),
   % This will cause a warning, because the .coverdata has already been imported ...
-  ok = ecoveralls:report(CoverData, [{src_dirs, ["test/cover_SUITE_data"]}, {url, <<"http://example.com">>}]).
+  ok = ecoveralls:report(CoverData, [{url, <<"http://example.com">>}]).
