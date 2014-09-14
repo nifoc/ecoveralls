@@ -53,7 +53,7 @@ travis_ci(CoverData) ->
 travis_ci(CoverData, Options) ->
   ok = start(),
   JobId = unicode:characters_to_binary(os:getenv("TRAVIS_JOB_ID")),
-  Options2 = merge_options([{service_name, <<"travis-ci">>}, {service_job_id, JobId}], Options),
+  Options2 = ecoveralls_utils:merge_options([{service_name, <<"travis-ci">>}, {service_job_id, JobId}], Options),
   ok = ecoveralls:report(CoverData, Options2),
   ok = stop().
 
@@ -123,36 +123,16 @@ coverage_report([Mod|Rest], Acc) ->
 
 -spec file_coverage(module()) -> {ok, file_coverage()} | {error, term()}.
 file_coverage(Mod) ->
-  case find_source_file(Mod) of
+  case ecoveralls_utils:source_file(Mod) of
     {ok, SourceFile} ->
       {ok, Source} = file:read_file(SourceFile),
       SourceLines = binary:split(Source, <<"\n">>, [global]),
       {ok, Coverage} = cover:analyse(Mod, calls, line),
       CoverageLines = line_coverage(1, length(SourceLines), Coverage, []),
-      FileCoverage = [{<<"name">>, project_filename(SourceFile)}, {<<"source">>, Source}, {<<"coverage">>, CoverageLines}],
+      FileCoverage = [{<<"name">>, ecoveralls_utils:filename_with_path(SourceFile)}, {<<"source">>, Source}, {<<"coverage">>, CoverageLines}],
       {ok, FileCoverage};
     {error, _Reason}=E -> E
   end.
-
--spec find_source_file(module()) -> {ok, string()} | {error, term()}.
-find_source_file(Mod) ->
-  try Mod:module_info(compile) of
-    Info ->
-      Source = proplists:get_value(source, Info),
-      case filelib:is_file(Source) of
-        false -> {error, source_not_found};
-        true -> {ok, Source}
-      end
-  catch
-    error:undef -> {error, source_not_found}
-  end.
-
--spec project_filename(string()) -> binary().
-project_filename(SrcFile) ->
-  {ok, Cwd} = file:get_cwd(),
-  Cwd2 = re:replace(Cwd, "/(logs|\.eunit)/.+$", "", [{return, list}]),
-  Path = string:substr(SrcFile, length(Cwd2) + 2),
-  unicode:characters_to_binary(Path).
 
 -spec line_coverage(pos_integer(), pos_integer(), list(), [line_coverage()]) -> [line_coverage()].
 line_coverage(Line, EndLine, _Coverage, Acc) when Line > EndLine ->
@@ -166,29 +146,12 @@ line_coverage(Line, EndLine, [{{_Mod, Line}, Calls}|Rest], Acc) ->
 line_coverage(Line, EndLine, Coverage, Acc) ->
   line_coverage(Line + 1, EndLine, Coverage, [null | Acc]).
 
--spec merge_options(options(), options()) -> options().
-merge_options(ListA, ListB) ->
-  DictA = orddict:from_list(ListA),
-  DictB = orddict:from_list(ListB),
-  MergedDict = orddict:merge(fun(_Key, _ValueA, ValueB) -> ValueB end, DictA, DictB),
-  orddict:to_list(MergedDict).
-
 % Tests (private functions)
 
 -ifdef(TEST).
 coverage_report_test() ->
   ?assertEqual([], coverage_report([nothing], [])).
 
-find_source_file_test() ->
-  {ok, SrcFile} = find_source_file(?MODULE),
-  ?assertEqual(<<"src/ecoveralls.erl">>, project_filename(SrcFile)),
-  ?assertEqual({error, source_not_found}, find_source_file(nothing)).
-
 line_coverage_test() ->
   ?assertEqual([null, null], line_coverage(1, 2, [{{test, 0}, 9001}], [])).
-
-merge_options_test() ->
-  ?assertEqual([{service_name, <<"test">>}], merge_options([], [{service_name, <<"test">>}])),
-  ?assertEqual([{service_name, <<"test">>}], merge_options([{service_name, <<"foo">>}], [{service_name, <<"test">>}])),
-  ?assertEqual([{service_job_id, <<"123">>}, {service_name, <<"test">>}], merge_options([{service_name, <<"test">>}], [{service_job_id, <<"123">>}])).
 -endif.
