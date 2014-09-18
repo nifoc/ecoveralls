@@ -153,5 +153,6 @@ coverage_report_test() ->
   ?assertEqual([], coverage_report([nothing], [])).
 
 line_coverage_test() ->
-  ?assertEqual([null, null], line_coverage(1, 2, [{{test, 0}, 9001}], [])).
+  ?assertEqual([null, null], line_coverage(1, 2, [{{test, 0}, 9001}], [])),
+  ?assertEqual([], line_coverage(3, 2, [{{test, 0}, 9001}], [])).
 -endif.
