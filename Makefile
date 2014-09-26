@@ -2,7 +2,7 @@ PROJECT = ecoveralls
 PROJECT_VERSION = 0.1
 
 DEPS = jsx hackney
-dep_jsx = git https://github.com/talentdeficit/jsx v2.1
+dep_jsx = git https://github.com/talentdeficit/jsx v2.1.1
 dep_hackney = git https://github.com/benoitc/hackney 0.13.1
 
 TEST_DEPS = nifoc_ct_helper
