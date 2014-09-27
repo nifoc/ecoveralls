@@ -18,6 +18,7 @@
 -export([
   source_file/1,
   filename_with_path/1,
+  send_data/2,
   merge_options/2
 ]).
 
@@ -40,6 +41,16 @@ filename_with_path(SrcFile) ->
   Path = string:substr(SrcFile, length(Cwd2) + 2),
   unicode:characters_to_binary(Path).
 
+-spec send_data(string(), jsx:json_term()) -> ok | {error, string()}.
+send_data(Url,  Data) ->
+  Boundary = "----------ecoveralls",
+  Type = "multipart/form-data; boundary=" ++ Boundary,
+  Body = generate_body(Data, Boundary),
+  case httpc:request(post, {Url, [], Type, Body}, [], []) of
+    {ok, {{_Version, 200, _HttpMsg}, _RespHeaders, _RespBody}} -> ok;
+    {ok, {{_Version, _Code, _HttpMsg}, _RespHeaders, RespBody}} -> {error, RespBody}
+  end.
+
 -spec merge_options(ecoveralls:options(), ecoveralls:options()) -> ecoveralls:options().
 merge_options(ListA, ListB) ->
   DictA = orddict:from_list(ListA),
@@ -47,16 +58,25 @@ merge_options(ListA, ListB) ->
   MergedDict = orddict:merge(fun(_Key, _ValueA, ValueB) -> ValueB end, DictA, DictB),
   orddict:to_list(MergedDict).
 
+% Private
+
+-spec generate_body(jsx:json_term(), string()) -> binary().
+generate_body(Data, Boundary) ->
+  Boundary2 = unicode:characters_to_binary(Boundary),
+  Payload = jsx:encode(Data),
+  <<"--", Boundary2/binary, "\r\n",
+    "Content-Disposition: form-data; name=\"json_file\"; filename=\"json_file.json\"\r\n",
+    "Content-Type: application/octet-stream\r\n\r\n",
+    Payload/binary, "\r\n",
+    "--", Boundary2/binary, "--\r\n">>.
+
 % Tests (private functions)
 
 -ifdef(TEST).
-source_file_test() ->
-  {ok, SrcFile} = source_file(?MODULE),
-  ?assertEqual(<<"src/ecoveralls_utils.erl">>, filename_with_path(SrcFile)),
-  ?assertEqual({error, source_not_found}, source_file(this_does_not_exist)).
-
-merge_options_test() ->
-  ?assertEqual([{service_name, <<"test">>}], merge_options([], [{service_name, <<"test">>}])),
-  ?assertEqual([{service_name, <<"test">>}], merge_options([{service_name, <<"foo">>}], [{service_name, <<"test">>}])),
-  ?assertEqual([{service_job_id, <<"123">>}, {service_name, <<"test">>}], merge_options([{service_name, <<"test">>}], [{service_job_id, <<"123">>}])).
+generate_body_test() ->
+  ?assertEqual(<<"--test\r\n",
+                 "Content-Disposition: form-data; name=\"json_file\"; filename=\"json_file.json\"\r\n",
+                 "Content-Type: application/octet-stream\r\n\r\n",
+                 "[]\r\n",
+                 "--test--\r\n">>, generate_body([], "test")).
 -endif.

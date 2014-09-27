@@ -10,8 +10,8 @@
     crypto,
     public_key,
     ssl,
-    jsx,
-    hackney
+    inets,
+    jsx
   ]},
   {env, []}
 ]}.

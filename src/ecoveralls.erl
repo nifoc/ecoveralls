@@ -14,11 +14,11 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--define(COVERALLS_URL, <<"https://coveralls.io/api/v1/jobs">>).
+-define(COVERALLS_URL, "https://coveralls.io/api/v1/jobs").
 
 % Types
 
--type option() :: {service_job_id, binary()} | {service_name, binary()}.
+-type option() :: {service_job_id, binary()} | {service_name, binary()} | {url, string()}.
 -type line_coverage() :: non_neg_integer() | null.
 
 -type options() :: [option()].
@@ -65,8 +65,7 @@ start() ->
   ok = application:start(crypto),
   ok = application:start(public_key),
   ok = application:start(ssl),
-  ok = application:start(idna),
-  ok = application:start(hackney),
+  ok = application:start(inets),
   ok = application:start(jsx),
   ok = application:start(ecoveralls),
   ok.
@@ -75,8 +74,7 @@ start() ->
 stop() ->
   ok = application:stop(ecoveralls),
   ok = application:stop(jsx),
-  ok = application:stop(idna),
-  ok = application:stop(hackney),
+  ok = application:stop(inets),
   ok = application:stop(ssl),
   ok = application:stop(public_key),
   ok = application:stop(crypto),
@@ -96,12 +94,10 @@ report(CoverData, Options) ->
   case analyse(CoverData, Options) of
     Data ->
       Url = proplists:get_value(url, Options, ?COVERALLS_URL),
-      Payload = jsx:encode(Data),
-      case hackney:request(post, Url, [], {multipart, [{<<"json">>, Payload}]}, []) of
-        {ok, 200, _RespHeaders, _ClientRef} -> ok;
-        {ok, _StatusCode, _RespHeaders, ClientRef} ->
-          {ok, Body} = hackney:body(ClientRef),
-          io:format(user, "~p~n", [Body]),
+      case ecoveralls_utils:send_data(Url, Data) of
+        ok -> ok;
+        {error, Msg} ->
+          io:format(user, "~p~n", [Msg]),
           ok
       end
   end.

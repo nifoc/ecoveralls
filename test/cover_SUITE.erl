@@ -62,4 +62,4 @@ report(Config) ->
   DataDir = ?config(data_dir, Config),
   CoverData = filename:join(DataDir, "test.coverdata"),
   % This will cause a warning, because the .coverdata has already been imported ...
-  ok = ecoveralls:report(CoverData, [{url, <<"http://example.com">>}]).
+  ok = ecoveralls:report(CoverData, [{url, "http://example.com"}]).
