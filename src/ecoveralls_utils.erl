@@ -78,5 +78,10 @@ generate_body_test() ->
                  "Content-Disposition: form-data; name=\"json_file\"; filename=\"json_file.json\"\r\n",
                  "Content-Type: application/octet-stream\r\n\r\n",
                  "[]\r\n",
-                 "--test--\r\n">>, generate_body([], "test")).
+                 "--test--\r\n">>, generate_body([], "test")),
+  ?assertEqual(<<"--test\r\n",
+                 "Content-Disposition: form-data; name=\"json_file\"; filename=\"json_file.json\"\r\n",
+                 "Content-Type: application/octet-stream\r\n\r\n",
+                 "{\"test\":[1]}\r\n",
+                 "--test--\r\n">>, generate_body([{test, [1]}], "test")).
 -endif.
