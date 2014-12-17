@@ -54,7 +54,7 @@ travis_ci(CoverData, Options) ->
   ok = start(),
   JobId = unicode:characters_to_binary(os:getenv("TRAVIS_JOB_ID")),
   Options2 = ecoveralls_utils:merge_options([{service_name, <<"travis-ci">>}, {service_job_id, JobId}], Options),
-  ok = ecoveralls:report(CoverData, Options2),
+  ok = report(CoverData, Options2),
   ok = stop().
 
 % API
@@ -83,6 +83,7 @@ stop() ->
 
 -spec analyse(string(), options()) -> jsx:json_term().
 analyse(CoverData, Options) ->
+  io:format(user, "Analysing file: ~s~n", [CoverData]),
   ok = cover:import(CoverData),
   ServiceJobId = proplists:get_value(service_job_id, Options, null),
   ServiceName = proplists:get_value(service_name, Options, null),
