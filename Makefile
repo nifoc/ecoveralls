@@ -2,7 +2,7 @@ PROJECT = ecoveralls
 PROJECT_VERSION = 0.1
 
 DEPS = jsx
-dep_jsx = git https://github.com/talentdeficit/jsx v2.1.1
+dep_jsx = git https://github.com/talentdeficit/jsx v2.4.0
 
 TEST_DEPS = nifoc_ct_helper
 dep_nifoc_ct_helper = git https://github.com/nifoc/nifoc_ct_helper master
