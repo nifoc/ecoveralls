@@ -31,6 +31,12 @@ TEST_DEPS = ecoveralls
 dep_ecoveralls = git https://github.com/nifoc/ecoveralls master
 ```
 
+Your `CT_OPTS` have to reference the `cover.spec` file, so you might have to add something like the following to your `Makefile` (before the erlang.mk include):
+
+```makefile
+CT_OPTS = -cover ./test/cover.spec
+```
+
 ### Travis CI
 
 Add the following target to your `Makefile` (after the erlang.mk include):
