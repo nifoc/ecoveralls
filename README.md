@@ -31,7 +31,16 @@ TEST_DEPS = ecoveralls
 dep_ecoveralls = git https://github.com/nifoc/ecoveralls master
 ```
 
-Your `CT_OPTS` have to reference the `cover.spec` file, so you might have to add something like the following to your `Makefile` (before the erlang.mk include):
+If you only want to depend on ECoveralls when tests are running on Travis CI, you can do something like the following instead:
+
+```makefile
+ifeq ($(USER),travis)
+	TEST_DEPS += ecoveralls
+	dep_ecoveralls = git https://github.com/nifoc/ecoveralls master
+endif
+```
+
+Your `CT_OPTS` have to reference the `cover.spec` file.
 
 ```makefile
 CT_OPTS = -cover ./test/cover.spec
